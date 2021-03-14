@@ -6,66 +6,91 @@
  
 class HashToShortInt {
 public:
-    int size;
-    HashToShortInt(int size) : size(size) {}
+    explicit HashToShortInt(int size) : size_(size) {}
  
     size_t operator()(int val) const {
-        return val % size;
+        return val % size_;
     }
- 
+
+private:
+    int size_;
 };
  
  
 template<typename Tkey, typename Tval, typename Hash>
 class MapHashListed {
-    std::vector<std::list<std::pair<Tkey, Tval>>> data;
-    Hash hash;
-    bool default_val_enable = false;
-    Tval* default_val;
 public:
+    class Node{
+    public:
+        Tkey key_;
+        Tval val_;
+
+        Node(Tkey  key, Tval val) : key_(std::move(key)), val_(std::move(val)) {}
+
+        bool operator < (const Node& another) const {
+            if (key_ != another.key_) {
+                return key_ < another.key_;
+            } else {
+                return val_ < another.val_;
+            }
+        }
+        bool operator > (const Node& another) const {
+            if (key_ != another.key_) {
+                return key_ > another.key_;
+            } else {
+                return val_ > another.val_;
+            }
+        }
+        bool operator <= (const Node& another) const {
+            if (key_ != another.key_) {
+                return key_ <= another.key_;
+            } else {
+                return val_ <= another.val_;
+            }
+        }
+        bool operator >= (const Node& another) const {
+            if (key_ != another.key_) {
+                return key_ >= another.key_;
+            } else {
+                return val_ >= another.val_;
+            }
+        }
+    };
     template <typename ...HashArgs>
-    explicit MapHashListed(int size, const HashArgs&... hash_args) : data(size), hash(size, hash_args...) {}
+    explicit MapHashListed(int size, const HashArgs&... hash_args) : data_(size), hash_(size, hash_args...) {}
  
-    explicit MapHashListed(int size) : data(size), hash(size) {}
+    explicit MapHashListed(int size) : data_(size), hash_(size) {}
  
     void enableDefaultValue(const Tval& default_value) {
-        default_val = new Tval(default_value);
-        default_val_enable = true;
+        default_val_ = new Tval(default_value);
+        default_val_enable_ = true;
     }
- 
-    void plus(const Tkey &key, const Tval &val) {
-        size_t place = hash(key);
-        auto iter = data[place].begin();
-        while(key != iter -> first && iter != data[place].end()) ++iter;
-        if (iter == data[place].end()) {
-            data[place].push_front(std::make_pair(key, val));
-        } else {
-            data[place].splice(data[place].begin(), data[place], iter);
-            data[place].begin()->second += val;
-        }
-        std::cout << data[place].begin() -> second << '\n';
-    }
- 
+
     Tval& operator [] (const Tkey& key) {
-        size_t place = hash(key);
-        auto iter = data[place].begin();
-        while(key != iter -> first && iter != data[place].end()) ++iter;
-        if (iter == data[place].end()) {
-            if (default_val_enable) {
-                data[place].push_front(std::pair<Tkey, Tval>(key,*default_val));
+        size_t place = hash_(key);
+        auto iter = data_[place].begin();
+        while(key != iter -> key_ && iter != data_[place].end()) ++iter;
+        if (iter == data_[place].end()) {
+            if (default_val_enable_) {
+                data_[place].push_front(Node(key,*default_val_));
             } else {
                 throw std::out_of_range{"Key hasn't been activated by insert and default activation hasn't been activated by enableDefaultValue"};
             }
         } else {
-            data[place].splice(data[place].begin(), data[place], iter);
-            return data[place].begin()->second;
+            data_[place].splice(data_[place].begin(), data_[place], iter);
+            return data_[place].begin()->val_;
         }
-        return data[place].begin()->second;
+        return data_[place].begin()->val_;
     }
  
     ~MapHashListed() {
-        if (default_val_enable) delete default_val;
+        if (default_val_enable_) delete default_val_;
     }
+private:
+    std::vector<std::list<Node>> data_;
+    Hash hash_;
+    bool default_val_enable_ = false;
+    Tval* default_val_;
 };
  
 int main() {
@@ -80,27 +105,27 @@ int main() {
     for (int i = 0; i < n; ++i) {
         std::cin >> a >> b;
         max = std::max(max, std::max(a, b));
-        int &ta = map[a];
-        int &tb = map[b];
-        if (ta == -1) {
-            if (tb == -1) {
-                ta = b;
-                tb = a;
+        int &a_val = map[a];
+        int &b_val = map[b];
+        if (a_val == -1) {
+            if (b_val == -1) {
+                a_val = b;
+                b_val = a;
             } else {
-                ta = tb;
-                tb = a;
+                a_val = b_val;
+                b_val = a;
             }
         } else {
-            if (tb == -1) {
-                tb = ta;
-                ta = b;
+            if (b_val == -1) {
+                b_val = a_val;
+                a_val = b;
             } else {
-                int t = ta;
-                ta = tb;
-                tb = t;
+                int t = a_val;
+                a_val = b_val;
+                b_val = t;
             }
         }
-        std::cout << std::abs(ta - tb) << '\n';
+        std::cout << std::abs(a_val - b_val) << '\n';
     }
     return 0;
 }
