@@ -65,32 +65,6 @@ public:
     }
 
     List &operator=(List &&other) {
-//        size_ = 0;
-//        Node *iter = first->next_;
-//        while (iter != last) {
-//            iter = iter->next_;
-//            ATraits::destroy(alloc_, dynamic_cast<NodeData *>(iter->prev_));
-//            ATraits::deallocate(alloc_, dynamic_cast<NodeData *>(iter->prev_), 1);
-//        }
-//        STraits::destroy(sub_alloc_, first);
-//        STraits::deallocate(sub_alloc_, first, 1);
-//        STraits::destroy(sub_alloc_, last);
-//        STraits::deallocate(sub_alloc_, last, 1);
-//        if (std::allocator_traits<Allocator>::propagate_on_container_copy_assignment::value) {
-//            simple_alloc_ = other.get_allocator();
-//            alloc_ = other.alloc_;
-//            sub_alloc_ = other.sub_alloc_;
-//        }
-//        first = other.first;
-//        last = other.last;
-//        List *new_list = new List(other.simple_alloc_);
-//        other.first = new_list->first;
-//        other.last = new_list->last;
-//        new_list->last = nullptr;
-//        new_list -> first = nullptr;
-//        size_ = other.size_;
-//        other.size_ = 0;
-//        delete new_list;
         if (std::allocator_traits<Allocator>::propagate_on_container_copy_assignment::value) {
             std::swap(alloc_, other.alloc_);
             std::swap(sub_alloc_, other.sub_alloc_);
@@ -177,7 +151,6 @@ public:
 
         CommonIterator<isConst>(const CommonIterator<isConst> &other);
 
-        //explicit CommonIterator<true>(const CommonIterator<false>& other): current_(other.current_) {}
         CommonIterator &operator=(CommonIterator<isConst> other) {
             current_ = other.current_;
             return *this;
@@ -383,9 +356,6 @@ public:
         template<class... Args>
         NodeData(Args &&... args): Node(nullptr, nullptr), val_(std::forward<Args>(args)...) {}
 
-//        NodeData(T&& val): Node(nullptr, nullptr), val_(std::forward<T>(val)){}
-
-        //NodeData(const NodeData& other) = default;
         ~NodeData() = default;
 
         using Type = decltype(val_);
@@ -671,29 +641,6 @@ public:
         return find_in(hash(key) % table_.size(), key);
     }
 
-    void rehash(size_t size) {
-        //std::cerr << list.size() << '\t' << table_.size() << '\t' << clock() << '\n';
-        ListT list_new;
-        std::vector<std::pair<iterator, iterator>> table_new(size, std::make_pair(list_new.end(), list_new.end()));
-        SizeT place;
-        while (list.size() > 0) {
-            auto iter = list.begin();
-            auto end = iter;
-            ++end;
-            place = hash(iter->first);
-            list_new.splice(table_new[place % size].first, list, iter, end);
-            if (table_new[place % size].first == list_new.end()) {
-                --table_new[place % size].first;
-                --table_new[place % size].second;
-            } else {
-                --table_new[place % size].first;
-            }
-        }
-        table_ = std::move(table_new);
-        list = std::move(list_new);
-        //std::cerr << list.size() << '\t' << table_.size() << '\t' << clock() << '\n';
-    }
-
     size_t size() {
         return list.size();
     }
@@ -749,7 +696,32 @@ public:
         }
     }
 
+    unsigned long long max_size() {
+        return std::min(table_.max_size(), std::numeric_limits<Hash>::max()) * max_load_factor_;
+    }
+
 private:
+
+    void rehash(size_t size) {
+        ListT list_new;
+        std::vector<std::pair<iterator, iterator>> table_new(size, std::make_pair(list_new.end(), list_new.end()));
+        SizeT place;
+        while (list.size() > 0) {
+            auto iter = list.begin();
+            auto end = iter;
+            ++end;
+            place = hash(iter->first);
+            list_new.splice(table_new[place % size].first, list, iter, end);
+            if (table_new[place % size].first == list_new.end()) {
+                --table_new[place % size].first;
+                --table_new[place % size].second;
+            } else {
+                --table_new[place % size].first;
+            }
+        }
+        table_ = std::move(table_new);
+        list = std::move(list_new);
+    }
 
     iterator find_in(SizeT place, const Key &key) {
         auto end = table_[place].second;
